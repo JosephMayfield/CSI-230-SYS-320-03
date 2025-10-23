@@ -17,13 +17,18 @@ function Get-IOC {
     $matches = [regex]::Matches($html, $pattern, [System.Text.RegularExpressions.RegexOptions]::Singleline)
 
     $results = foreach ($m in $matches) {
-        # Skip header row if captured (it won't match because headers use <th>)
         [pscustomobject]@{
             Pattern     = ($m.Groups[1].Value).Trim()
             Explanation = ($m.Groups[2].Value).Trim()
         }
     }
 
-    # Return objects (so caller can Format-Table, export, filter, etc.)
     return $results
 }
+
+# ---------- Auto-run when the script is executed directly ----------
+# If you run the script file (.\Get-IOC.ps1) it will call the function and print a table.
+# If you dot-source the script (. .\Get-IOC.ps1) the function will be loaded but this call will still run,
+# so if you want only to load the function for interactive use, comment out the next line.
+
+Get-IOC -Path "C:\Users\champuser\Downloads\IOC.html" | Format-Table -AutoSize
