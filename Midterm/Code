@@ -1,0 +1,29 @@
+function Get-IOC {
+    [CmdletBinding()]
+    param (
+        [string]$Path = "C:\Users\champuser\Downloads\IOC.html"
+    )
+
+    if (-not (Test-Path -Path $Path)) {
+        Write-Error "File not found: $Path"
+        return
+    }
+
+    # Read the HTML file as raw text
+    $html = Get-Content -Path $Path -Raw
+
+    # Regex to capture <tr><td>Pattern</td><td>Description</td></tr>
+    $pattern = '<tr>\s*<td>(.*?)<\/td>\s*<td>(.*?)<\/td>\s*<\/tr>'
+    $matches = [regex]::Matches($html, $pattern, [System.Text.RegularExpressions.RegexOptions]::Singleline)
+
+    $results = foreach ($m in $matches) {
+        # Skip header row if captured (it won't match because headers use <th>)
+        [pscustomobject]@{
+            Pattern     = ($m.Groups[1].Value).Trim()
+            Explanation = ($m.Groups[2].Value).Trim()
+        }
+    }
+
+    # Return objects (so caller can Format-Table, export, filter, etc.)
+    return $results
+}
