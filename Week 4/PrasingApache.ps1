@@ -1,4 +1,4 @@
-﻿function ApacheLogs1 {
+﻿function Apache-Logs {
     # Path to the Apache access log
     $logsNotformatted = Get-Content "C:\xampp\apache\logs\access.log"
     $tableRecords = @()
@@ -27,5 +27,6 @@
 }
 
 # Call the function and display results in a formatted table
-$tableRecords = ApacheLogs1
+$tableRecords = Apache-Logs
 $tableRecords | Format-Table -AutoSize -Wrap
+
