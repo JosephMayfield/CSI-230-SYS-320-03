@@ -1,45 +1,46 @@
 function Get-ApacheAccessLogs {
     [CmdletBinding()]
     param(
-        [Parameter(Mandatory=$false)]
-        [string]$Path = "C:\Users\champuser\Downloads\access.log"
+        [Parameter(Mandatory=$true)]
+        [string]$LogPath,
+
+        [Parameter(Mandatory=$true)]
+        [string]$IOCPath
     )
 
+    # 1️⃣ Load IOC patterns from the HTML table
+    [xml]$iocHtml = Get-Content -Path $IOCPath -Raw
+    $iocPatterns = $iocHtml.html.body.table.tr |
+        Where-Object { $_.td } |
+        ForEach-Object { $_.td[0].'#text' }
+
+    Write-Host "Loaded $($iocPatterns.Count) IOC patterns:`n" -ForegroundColor Cyan
+    $iocPatterns | ForEach-Object { Write-Host " - $_" -ForegroundColor Yellow }
+
+    # 2️⃣ Define Apache log regex
     $pattern = '^(?<ip>\S+) \S+ \S+ \[(?<time>[^\]]+)\] "(?<request>[^"]*)" (?<status>\d{3}) (?<bytes>\S+) "(?<referrer>[^"]*)" "(?<agent>[^"]*)"'
 
-    Get-Content -Path $Path -ErrorAction Stop | ForEach-Object {
+    Write-Host "`nScanning $LogPath for suspicious activity..." -ForegroundColor Cyan
+
+    # 3️⃣ Parse and check each log entry
+    Get-Content -Path $LogPath | ForEach-Object {
         if ($_ -match $pattern) {
-            $ip      = $matches['ip']
-            $timeRaw = $matches['time']
+            $ip = $matches['ip']
+            $time = $matches['time']
             $request = $matches['request']
-            $status  = $matches['status']
-            $ref     = $matches['referrer']
+            $status = $matches['status']
 
-            $reqParts = $request -split '\s+'
-            $method   = if ($reqParts.Length -ge 1) { $reqParts[0] } else { '-' }
-            $page     = if ($reqParts.Length -ge 2) { $reqParts[1] } else { '-' }
-            $protocol = if ($reqParts.Length -ge 3) { $reqParts[2] } else { '-' }
-
-            $timeForParse = $timeRaw -replace '([+\-]\d{2})(\d{2})$','$1:$2'
-            try {
-                $dt = [datetime]::ParseExact(
-                    $timeForParse,
-                    "dd/MMM/yyyy:HH:mm:ss zzz",
-                    [System.Globalization.CultureInfo]::InvariantCulture
-                )
-                $timeOut = $dt.ToString("dd/MMM/yyyy:HH:mm:ss")
-            } catch {
-                $timeOut = $timeRaw
-            }
-
-            [pscustomobject]@{
-                IP       = $ip
-                Time     = $timeOut
-                Method   = $method
-                Page     = $page
-                Protocol = $protocol
-                Response = $status
-                Referrer = $ref
+            # Check for IOCs
+            foreach ($ioc in $iocPatterns) {
+                if ($request -match [regex]::Escape($ioc)) {
+                    [pscustomobject]@{
+                        IP        = $ip
+                        Time      = $time
+                        Request   = $request
+                        Response  = $status
+                        IOCMatch  = $ioc
+                    }
+                }
             }
         }
     }
