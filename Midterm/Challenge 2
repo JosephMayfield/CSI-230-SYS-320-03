@@ -1,0 +1,46 @@
+function Get-ApacheAccessLogs {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory=$false)]
+        [string]$Path = "C:\Users\champuser\Downloads\access.log"
+    )
+
+    $pattern = '^(?<ip>\S+) \S+ \S+ \[(?<time>[^\]]+)\] "(?<request>[^"]*)" (?<status>\d{3}) (?<bytes>\S+) "(?<referrer>[^"]*)" "(?<agent>[^"]*)"'
+
+    Get-Content -Path $Path -ErrorAction Stop | ForEach-Object {
+        if ($_ -match $pattern) {
+            $ip      = $matches['ip']
+            $timeRaw = $matches['time']
+            $request = $matches['request']
+            $status  = $matches['status']
+            $ref     = $matches['referrer']
+
+            $reqParts = $request -split '\s+'
+            $method   = if ($reqParts.Length -ge 1) { $reqParts[0] } else { '-' }
+            $page     = if ($reqParts.Length -ge 2) { $reqParts[1] } else { '-' }
+            $protocol = if ($reqParts.Length -ge 3) { $reqParts[2] } else { '-' }
+
+            $timeForParse = $timeRaw -replace '([+\-]\d{2})(\d{2})$','$1:$2'
+            try {
+                $dt = [datetime]::ParseExact(
+                    $timeForParse,
+                    "dd/MMM/yyyy:HH:mm:ss zzz",
+                    [System.Globalization.CultureInfo]::InvariantCulture
+                )
+                $timeOut = $dt.ToString("dd/MMM/yyyy:HH:mm:ss")
+            } catch {
+                $timeOut = $timeRaw
+            }
+
+            [pscustomobject]@{
+                IP       = $ip
+                Time     = $timeOut
+                Method   = $method
+                Page     = $page
+                Protocol = $protocol
+                Response = $status
+                Referrer = $ref
+            }
+        }
+    }
+}
