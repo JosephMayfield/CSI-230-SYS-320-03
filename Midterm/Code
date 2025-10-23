@@ -1,34 +1,23 @@
 function Get-IOC {
-    [CmdletBinding()]
     param (
-        [string]$Path = "C:\Users\champuser\Downloads\IOC.html"
+        [string]$Path = "C:\path\to\IOC.html"
     )
 
-    if (-not (Test-Path -Path $Path)) {
-        Write-Error "File not found: $Path"
-        return
-    }
+    # Read HTML content
+    $html = Get-Content $Path -Raw
 
-    # Read the HTML file as raw text
-    $html = Get-Content -Path $Path -Raw
+    # Use regex to extract rows between <tr> and </tr>
+    $rows = [regex]::Matches($html, '<tr>\s*<td>(.*?)<\/td>\s*<td>(.*?)<\/td>\s*<\/tr>')
 
-    # Regex to capture <tr><td>Pattern</td><td>Description</td></tr>
-    $pattern = '<tr>\s*<td>(.*?)<\/td>\s*<td>(.*?)<\/td>\s*<\/tr>'
-    $matches = [regex]::Matches($html, $pattern, [System.Text.RegularExpressions.RegexOptions]::Singleline)
-
-    $results = foreach ($m in $matches) {
+    # Parse each match into an object
+    $results = foreach ($row in $rows) {
         [pscustomobject]@{
-            Pattern     = ($m.Groups[1].Value).Trim()
-            Explanation = ($m.Groups[2].Value).Trim()
+            Pattern     = $row.Groups[1].Value
+            Explanation = $row.Groups[2].Value
         }
     }
 
-    return $results
+    # Display results in table format
+    $results | Format-Table -AutoSize
 }
 
-# ---------- Auto-run when the script is executed directly ----------
-# If you run the script file (.\Get-IOC.ps1) it will call the function and print a table.
-# If you dot-source the script (. .\Get-IOC.ps1) the function will be loaded but this call will still run,
-# so if you want only to load the function for interactive use, comment out the next line.
-
-Get-IOC -Path "C:\Users\champuser\Downloads\IOC.html" | Format-Table -AutoSize
