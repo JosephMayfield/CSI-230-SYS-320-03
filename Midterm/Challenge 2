@@ -5,14 +5,20 @@ function Get-ApacheLogs {
 
     Get-Content $Path | ForEach-Object {
         if ($_ -match $pattern) {
+            # Remove timezone offset (e.g., -0500)
+            $cleanTime = $Matches.Time -replace ' [-+]\d{4}$', ''
+
+            # Add quotes around referrer if it's just a dash
+            $ref = if ($Matches.Referrer -eq '-') { '"-"' } else { $Matches.Referrer }
+
             [PSCustomObject]@{
                 IP       = $Matches.IP
-                Time     = $Matches.Time
+                Time     = $cleanTime
                 Method   = $Matches.Method
                 Page     = $Matches.Page
                 Protocol = $Matches.Protocol
                 Response = $Matches.Response
-                Referrer = $Matches.Referrer
+                Referrer = $ref
             }
         }
     } | Format-Table -AutoSize
