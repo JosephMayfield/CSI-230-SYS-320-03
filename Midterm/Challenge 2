@@ -1,47 +1,22 @@
-function Get-ApacheAccessLogs {
-    [CmdletBinding()]
-    param(
-        [Parameter(Mandatory=$true)]
-        [string]$LogPath,
+function Get-ApacheLogs {
+    param([string]$Path = "C:\xampp\apache\logs\access1.log")
 
-        [Parameter(Mandatory=$true)]
-        [string]$IOCPath
-    )
+    $pattern = '^(?<IP>\S+) \S+ \S+ \[(?<Time>[^\]]+)\] "(?<Method>\S+)\s+(?<Page>\S+)\s+(?<Protocol>\S+)" (?<Response>\d+) \S+ "(?<Referrer>[^"]*)"'
 
-    # 1️⃣ Load IOC patterns from the HTML table
-    [xml]$iocHtml = Get-Content -Path $IOCPath -Raw
-    $iocPatterns = $iocHtml.html.body.table.tr |
-        Where-Object { $_.td } |
-        ForEach-Object { $_.td[0].'#text' }
-
-    Write-Host "Loaded $($iocPatterns.Count) IOC patterns:`n" -ForegroundColor Cyan
-    $iocPatterns | ForEach-Object { Write-Host " - $_" -ForegroundColor Yellow }
-
-    # 2️⃣ Define Apache log regex
-    $pattern = '^(?<ip>\S+) \S+ \S+ \[(?<time>[^\]]+)\] "(?<request>[^"]*)" (?<status>\d{3}) (?<bytes>\S+) "(?<referrer>[^"]*)" "(?<agent>[^"]*)"'
-
-    Write-Host "`nScanning $LogPath for suspicious activity..." -ForegroundColor Cyan
-
-    # 3️⃣ Parse and check each log entry
-    Get-Content -Path $LogPath | ForEach-Object {
+    Get-Content $Path | ForEach-Object {
         if ($_ -match $pattern) {
-            $ip = $matches['ip']
-            $time = $matches['time']
-            $request = $matches['request']
-            $status = $matches['status']
-
-            # Check for IOCs
-            foreach ($ioc in $iocPatterns) {
-                if ($request -match [regex]::Escape($ioc)) {
-                    [pscustomobject]@{
-                        IP        = $ip
-                        Time      = $time
-                        Request   = $request
-                        Response  = $status
-                        IOCMatch  = $ioc
-                    }
-                }
+            [PSCustomObject]@{
+                IP       = $Matches.IP
+                Time     = $Matches.Time
+                Method   = $Matches.Method
+                Page     = $Matches.Page
+                Protocol = $Matches.Protocol
+                Response = $Matches.Response
+                Referrer = $Matches.Referrer
             }
         }
-    }
+    } | Format-Table -AutoSize
 }
+
+# Run it:
+Get-ApacheLogs
