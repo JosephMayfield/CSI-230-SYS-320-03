@@ -1,0 +1,33 @@
+function Find-SuspiciousLogs {
+    param(
+        [string]$Path = "C:\xampp\apache\logs\access1.log",
+        [string[]]$Indicators = @("cmd=", "passwd", "bash", "sh", "reverseshell")
+    )
+
+    $pattern = '^(?<IP>\S+) \S+ \S+ \[(?<Time>[^\]]+)\] "(?<Method>\S+)\s+(?<Page>\S+)\s+(?<Protocol>\S+)" (?<Response>\d+) \S+ "(?<Referrer>[^"]*)"'
+
+    Get-Content $Path | ForEach-Object {
+        if ($_ -match $pattern) {
+            $cleanTime = $Matches.Time -replace ' [-+]\d{4}$', ''
+            $ref = if ($Matches.Referrer -eq '-') { '"-"' } else { $Matches.Referrer }
+
+            $log = [PSCustomObject]@{
+                IP       = $Matches.IP
+                Time     = $cleanTime
+                Method   = $Matches.Method
+                Page     = $Matches.Page
+                Protocol = $Matches.Protocol
+                Response = $Matches.Response
+                Referrer = $ref
+            }
+
+            # Return only logs that contain any of the indicators
+            if ($Indicators | Where-Object { $log.Page -match $_ }) {
+                $log
+            }
+        }
+    } | Format-Table -AutoSize
+}
+
+# Example:
+Find-SuspiciousLogs
