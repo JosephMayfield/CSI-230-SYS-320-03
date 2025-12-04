@@ -1,0 +1,24 @@
+#!/bin/bash
+
+logfile=$1
+iocfile=$2
+
+> report.txt
+
+while read indicator; do
+    grep "$indicator" "$logfile" | while read line; do
+
+        # Extract IP address (field 1)
+        ip=$(echo "$line" | awk '{print $1}')
+
+        # Extract datetime (field 4), remove leading "["
+        datetime=$(echo "$line" | awk '{print $4}' | sed 's/^\[//')
+
+        # Extract page accessed (field 7)
+        page=$(echo "$line" | awk '{print $7}')
+
+        echo "$ip $datetime $page" >> report.txt
+
+    done
+done < "$iocfile"
+
