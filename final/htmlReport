@@ -1,0 +1,22 @@
+#!/bin/bash
+
+output="report.html"
+
+# Start HTML
+echo "<html>" > $output
+echo "<body>" >> $output
+echo "<h2>Access logs with IOC indicators:</h2>" >> $output
+echo "<table border=\"1\">" >> $output
+
+# Read each line and put into HTML table rows
+while read ip datetime page; do
+    echo "<tr><td>$ip</td><td>$datetime</td><td>$page</td></tr>" >> $output
+done < report.txt
+
+# End HTML
+echo "</table>" >> $output
+echo "</body>" >> $output
+echo "</html>" >> $output
+
+# Move to web server
+sudo mv report.html /var/www/html/
